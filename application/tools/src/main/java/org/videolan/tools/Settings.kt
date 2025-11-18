@@ -328,6 +328,7 @@ const val KEY_AUDIO_BOOST = "audio_boost"
 const val KEY_SAVE_INDIVIDUAL_AUDIO_DELAY = "save_individual_audio_delay"
 const val KEY_AUDIO_RESUME_CARD = "audio_resume_card"
 const val KEY_AUDIO_PREFERRED_LANGUAGE = "audio_preferred_language"
+const val KEY_ENABLE_SNAPCAST = "enable_snapcast"
 
 //Video
 const val KEY_VIDEO_MATCH_FRAME_RATE = "video_match_frame_rate"

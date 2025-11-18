@@ -202,6 +202,7 @@ dependencies {
     implementation 'com.google.zxing:core:3.4.0'
     implementation "androidx.palette:palette-ktx:1.0.0"
     implementation 'com.jaredrummler:colorpicker:1.1.0'
+    implementation 'tech.capullo:lib-snapcast-android:0.45.0'
 
     // Tests
     androidTestImplementation "androidx.test.espresso:espresso-contrib:$rootProject.espressoVersion"

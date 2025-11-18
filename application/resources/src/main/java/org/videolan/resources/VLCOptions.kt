@@ -25,7 +25,11 @@ import android.content.SharedPreferences
 import android.graphics.Color
 import android.media.AudioManager
 import android.os.Build
+import android.system.Os.mkfifo
+import android.system.OsConstants.S_IRUSR
+import android.system.OsConstants.S_IWUSR
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import org.videolan.libvlc.interfaces.IMedia
@@ -291,6 +295,7 @@ object VLCOptions {
         return ret
     }
 
+    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     fun setMediaOptions(media: IMedia, context: Context, flags: Int, hasRenderer: Boolean) {
         val noHardwareAcceleration = flags and MediaWrapper.MEDIA_NO_HWACCEL != 0
         val noVideo = flags and MediaWrapper.MEDIA_VIDEO == 0
@@ -322,6 +327,26 @@ object VLCOptions {
             media.addOption(":sout-chromecast-audio-passthrough=" + prefs.getBoolean(KEY_CASTING_PASSTHROUGH, true))
             media.addOption(":sout-chromecast-conversion-quality=" + prefs.getString(KEY_CASTING_QUALITY, "2")!!)
         }
+
+        if (noVideo) {
+            val fifoPath = File(context.cacheDir, "filifo")
+            if (fifoPath.exists()) {
+                Log.d(TAG, "Deleting existing PIPE file")
+                fifoPath.delete()
+            }
+
+            try {
+                //media.addOption(":sout=#transcode{acodec=pcm_s16l,channels=2,samplerate=44100}:std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
+                media.addOption(":sout=#std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
+                mkfifo(fifoPath.absolutePath, S_IRUSR or S_IWUSR)
+                Log.d(TAG, "Creating PIPE: ${fifoPath.absolutePath} with PCM 16-bit LE, 44.1kHz, stereo")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating PIPE file: ${e.message}")
+            }
+        }
+        //if (File(fifoPath).exists()) {
+            //media.addOption(":sout=#std{access=file,mux=ts,dst=$fifoPath}")
+        //}
     }
 
     fun getEqualizerEnabledState(context: Context): Boolean {

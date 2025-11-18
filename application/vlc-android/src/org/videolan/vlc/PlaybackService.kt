@@ -232,6 +232,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private val audioFocusHelper by lazy { VLCAudioFocusHelper(this) }
     private lateinit var browserCallback: MediaBrowserCallback
     var sleepTimerJob: Job? = null
+    var snapserverJob: Job? = null
     var waitForMediaEnd = false
     var resetOnInteraction = false
     var sleepTimerInterval = 0L
@@ -326,6 +327,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
         when (event.type) {
             MediaPlayer.Event.Playing -> {
                 if (BuildConfig.DEBUG) Log.i(TAG, "MediaPlayer.Event.Playing")
+                if (!currentMediaHasFlag(MediaWrapper.MEDIA_VIDEO)) {
+                    startSnapserverIfNeeded()
+                }
                 executeUpdate(true)
                 lastTime = getTime()
                 audioFocusHelper.changeAudioFocus(true)
@@ -1118,12 +1122,30 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     fun pause() = playlistManager.pause()
 
     @MainThread
-    fun play() = playlistManager.play()
+    fun play() {
+        println("PlaybackService mainthread play")
+        playlistManager.play()
+    }
+
+    private fun startSnapserverIfNeeded() {
+        if (snapserverJob?.isActive != true) {
+            snapserverJob = launch {
+                val snapserver = SnapserverProcess(this@PlaybackService)
+                snapserver.start()
+            }
+        }
+    }
 
     @MainThread
     @JvmOverloads
     fun stop(systemExit: Boolean = false, video: Boolean = false) {
         playlistManager.stop(systemExit, video)
+        stopSnapserver()
+    }
+
+    private fun stopSnapserver() {
+        snapserverJob?.cancel()
+        snapserverJob = null
     }
 
     private fun initMediaSession() {
