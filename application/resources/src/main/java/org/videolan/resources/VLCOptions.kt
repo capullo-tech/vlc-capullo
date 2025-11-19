@@ -336,7 +336,7 @@ object VLCOptions {
             }
 
             try {
-                fifoPath.createNewFile()
+                mkfifo(fifoPath.absolutePath, S_IRUSR or S_IWUSR)
                 Log.d(TAG, "Creating regular file: ${fifoPath.absolutePath}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error creating regular file: ${e.message}")
