@@ -24,6 +24,7 @@ class SnapserverProcess(private val context: Context) {
 
     companion object {
         private const val STREAM_NAME: String = "name=VLCAndroid"
+        private const val CODEC: String = "codec=pcm"
         private const val PIPE_MODE: String = "mode=read"
         private const val DRYOUT_MS: String = "dryout_ms=2000"
         private const val SAMPLE_FORMAT: String = "sampleformat=44100:16:2"
@@ -31,6 +32,7 @@ class SnapserverProcess(private val context: Context) {
 
         private val pipeArgs = listOf(
             STREAM_NAME,
+            CODEC,
             PIPE_MODE,
             DRYOUT_MS,
             SAMPLE_FORMAT,
@@ -42,7 +44,21 @@ class SnapserverProcess(private val context: Context) {
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun getPipeFilepath(): String? {
         val pipeFile = File(getCacheDir(), PIPE_NAME)
-        return pipeFile.absolutePath
+        /*
+        if (pipeFile.exists()) {
+            Log.d(TAG, "Deleting existing PIPE file")
+            pipeFile.delete()
+        }
+         */
+
+        Log.d(TAG, "Creating PIPE: ${pipeFile.absolutePath}")
+        try {
+            //mkfifo(pipeFile.absolutePath, S_IRUSR or S_IWUSR)
+            return pipeFile.absolutePath
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating PIPE file: ${e.message}")
+            return null
+        }
     }
 
     private fun getNativeLibDirPath(): String = context.applicationInfo.nativeLibraryDir

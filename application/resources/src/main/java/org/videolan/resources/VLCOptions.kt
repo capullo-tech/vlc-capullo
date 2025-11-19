@@ -336,13 +336,13 @@ object VLCOptions {
             }
 
             try {
-                //media.addOption(":sout=#transcode{acodec=pcm_s16l,channels=2,samplerate=44100}:std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
-                media.addOption(":sout=#std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
-                mkfifo(fifoPath.absolutePath, S_IRUSR or S_IWUSR)
-                Log.d(TAG, "Creating PIPE: ${fifoPath.absolutePath} with PCM 16-bit LE, 44.1kHz, stereo")
+                fifoPath.createNewFile()
+                Log.d(TAG, "Creating regular file: ${fifoPath.absolutePath}")
             } catch (e: Exception) {
-                Log.e(TAG, "Error creating PIPE file: ${e.message}")
+                Log.e(TAG, "Error creating regular file: ${e.message}")
             }
+            media.addOption(":sout=#transcode{acodec=s16l,channels=2,samplerate=44100}:std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
+            //media.addOption(":sout=#std{access=file,mux=raw,dst=${fifoPath.absolutePath}}")
         }
         //if (File(fifoPath).exists()) {
             //media.addOption(":sout=#std{access=file,mux=ts,dst=$fifoPath}")
