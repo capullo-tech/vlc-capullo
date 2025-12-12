@@ -1,0 +1,108 @@
+package org.videolan.vlc
+
+import android.app.Service.AUDIO_SERVICE
+import android.content.Context
+import android.media.AudioManager
+import android.os.Build
+import android.os.Process
+import android.util.Log
+import androidx.core.content.edit
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.UUID
+
+class SnapclientProcess(private val applicationContext: Context) {
+
+    private val nativeLibDir = getNativeLibDirPath()
+    private val androidPlayer = if (Build.VERSION.SDK_INT <
+        Build.VERSION_CODES.O
+    ) {
+        "opensl"
+    } else {
+        "oboe"
+    }
+
+    private val audioManager = applicationContext.getSystemService(AUDIO_SERVICE) as AudioManager
+    private val rate: String? = audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)
+    private val fpb: String? = audioManager.getProperty(
+        AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER,
+    )
+    private val sampleFormat = "$rate:16:*"
+
+    fun loadHostId(): String {
+        val sharedPreferences = applicationContext.getSharedPreferences(
+            "SNAPCAST_CLIENT_HOST_ID",
+            Context.MODE_PRIVATE,
+        )
+
+        var hostId = sharedPreferences.getString(
+            "SNAPCAST_CLIENT_HOST_ID_PREFERENCE",
+            null,
+        )
+
+        if (hostId == null) {
+            // Generate a new hostId
+            hostId = UUID.randomUUID().toString()
+
+            // Save it for future use
+            sharedPreferences.edit {
+                putString(
+                    "SNAPCAST_CLIENT_HOST_ID_PREFERENCE",
+                    hostId,
+                )
+            }
+
+            Log.d(TAG, "Generating hostID for the first time: $hostId")
+        }
+
+        return hostId
+    }
+
+    private fun getNativeLibDirPath(): String = applicationContext.applicationInfo.nativeLibraryDir
+
+    suspend fun start(
+        snapserverAddress: String = "localhost",
+        snapserverPort: Int = 1704,
+    ) = coroutineScope {
+        val hostId = loadHostId()
+
+        val pb = ProcessBuilder().command(
+            "$nativeLibDir/libsnapclient.so",
+            "--hostID", hostId, "--player", androidPlayer, "--sampleformat", sampleFormat,
+            "--logfilter", "*:info,Stats:debug",
+            "tcp://$snapserverAddress:$snapserverPort",
+        )
+
+        val env = pb.environment()
+        if (rate != null) env["SAMPLE_RATE"] = rate
+        if (fpb != null) env["FRAMES_PER_BUFFER"] = fpb
+
+        val process = pb.start()
+        try {
+            val bufferedReader = BufferedReader(
+                InputStreamReader(process.inputStream),
+            )
+            var line: String?
+            while (bufferedReader.readLine().also { line = it } != null) {
+                ensureActive()
+                val processId = Process.myPid()
+                val threadName = Thread.currentThread().name
+                Log.d(TAG, "Running on: $processId -  $threadName - ${line!!}")
+            }
+        } catch (_: CancellationException) {
+            Log.d(TAG, "Snapclient process cancelled")
+            process.destroy()
+            process.waitFor()
+            Log.d(TAG, "Snapclient process destroyed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting snapcast process", e)
+        }
+    }
+
+    companion object {
+        private val TAG = SnapclientProcess::class.java.simpleName
+    }
+}

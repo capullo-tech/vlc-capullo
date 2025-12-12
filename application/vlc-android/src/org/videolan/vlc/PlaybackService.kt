@@ -233,6 +233,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private lateinit var browserCallback: MediaBrowserCallback
     var sleepTimerJob: Job? = null
     var snapserverJob: Job? = null
+    var snapclientJob: Job? = null
     var waitForMediaEnd = false
     var resetOnInteraction = false
     var sleepTimerInterval = 0L
@@ -1127,11 +1128,18 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
         playlistManager.play()
     }
 
+    //@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun startSnapserverIfNeeded() {
         if (snapserverJob?.isActive != true) {
             snapserverJob = launch {
                 val snapserver = SnapserverProcess(this@PlaybackService)
                 snapserver.start()
+            }
+        }
+        if (snapclientJob?.isActive != true) {
+            snapclientJob = launch {
+                val snapclient = SnapclientProcess(this@PlaybackService)
+                snapclient.start()
             }
         }
     }
@@ -1146,6 +1154,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     private fun stopSnapserver() {
         snapserverJob?.cancel()
         snapserverJob = null
+
+        snapclientJob?.cancel()
+        snapclientJob = null
     }
 
     private fun initMediaSession() {
