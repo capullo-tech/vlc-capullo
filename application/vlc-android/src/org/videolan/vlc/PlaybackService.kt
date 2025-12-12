@@ -39,6 +39,7 @@ import android.graphics.Typeface
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
@@ -234,6 +235,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     var sleepTimerJob: Job? = null
     var snapserverJob: Job? = null
     var snapclientJob: Job? = null
+    var snapserverNsdManager: SnapserverNsdManager? = null
+    var wifiWakeLock: WifiManager.WifiLock? = null
+    var multicastLock: WifiManager.MulticastLock? = null
     var waitForMediaEnd = false
     var resetOnInteraction = false
     var sleepTimerInterval = 0L
@@ -1128,7 +1132,6 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
         playlistManager.play()
     }
 
-    //@RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun startSnapserverIfNeeded() {
         if (snapserverJob?.isActive != true) {
             snapserverJob = launch {
@@ -1140,6 +1143,32 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
             snapclientJob = launch {
                 val snapclient = SnapclientProcess(this@PlaybackService)
                 snapclient.start()
+            }
+        }
+        if (snapserverNsdManager == null) {
+            launch {
+                val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+
+                val wifiMode = WifiManager.WIFI_MODE_FULL_HIGH_PERF
+
+                if (wifiManager != null) {
+                    wifiWakeLock = wifiManager.createWifiLock(
+                        wifiMode,
+                        "vlcapullo:WifiWakeLock"
+                    ).apply {
+                        setReferenceCounted(false)
+                        acquire()
+                    }
+
+                    multicastLock = wifiManager.createMulticastLock(
+                        "vlcapullo:MulticastLock",
+                    ).apply {
+                        setReferenceCounted(false)
+                        acquire()
+                    }
+                }
+                snapserverNsdManager = SnapserverNsdManager(this@PlaybackService)
+                snapserverNsdManager?.start()
             }
         }
     }
@@ -1157,6 +1186,23 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
 
         snapclientJob?.cancel()
         snapclientJob = null
+
+        snapserverNsdManager?.stop()
+        snapserverNsdManager = null
+
+        wifiWakeLock?.let { lock ->
+            if (lock.isHeld) {
+                lock.release()
+            }
+            wifiWakeLock = null
+        }
+
+        multicastLock?.let { lock ->
+            if (lock.isHeld) {
+                lock.release()
+            }
+            multicastLock = null
+        }
     }
 
     private fun initMediaSession() {
