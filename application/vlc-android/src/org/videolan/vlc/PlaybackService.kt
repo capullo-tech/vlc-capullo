@@ -236,6 +236,7 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     var snapserverJob: Job? = null
     var snapclientJob: Job? = null
     var snapserverNsdManager: SnapserverNsdManager? = null
+    var snapcontrolPlugin: SnapcontrolPlugin? = null
     var wifiWakeLock: WifiManager.WifiLock? = null
     var multicastLock: WifiManager.MulticastLock? = null
     var waitForMediaEnd = false
@@ -1133,6 +1134,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
     }
 
     private fun startSnapserverIfNeeded() {
+        if (snapcontrolPlugin == null) {
+            snapcontrolPlugin = SnapcontrolPlugin(this).also { it.start() }
+        }
         if (snapserverJob?.isActive != true) {
             snapserverJob = launch {
                 val snapserver = SnapserverProcess(this@PlaybackService)
@@ -1189,6 +1193,9 @@ class PlaybackService : MediaBrowserServiceCompat(), LifecycleOwner, CoroutineSc
 
         snapserverNsdManager?.stop()
         snapserverNsdManager = null
+
+        snapcontrolPlugin?.stop()
+        snapcontrolPlugin = null
 
         wifiWakeLock?.let { lock ->
             if (lock.isHeld) {

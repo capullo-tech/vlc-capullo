@@ -30,16 +30,17 @@ class SnapserverProcess(private val context: Context) {
         private const val SAMPLE_FORMAT: String = "sampleformat=44100:16:2"
         private const val PIPE_NAME = "filifo"
 
-        private val pipeArgs = listOf(
-            STREAM_NAME,
-            CODEC,
-            PIPE_MODE,
-            DRYOUT_MS,
-            SAMPLE_FORMAT,
-        ).joinToString("&")
-
         private val TAG = SnapserverProcess::class.java.simpleName
     }
+
+    private val pipeArgs = listOf(
+        STREAM_NAME,
+        CODEC,
+        PIPE_MODE,
+        DRYOUT_MS,
+        SAMPLE_FORMAT,
+        "controlscript=$nativeLibDir/libsnapcontrol.so",
+    ).joinToString("&")
 
     @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private fun getPipeFilepath(): String? {
